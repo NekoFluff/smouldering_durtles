@@ -77,8 +77,9 @@ public final class DownloadAudioTask extends ApiTask {
             boolean scan = false;
             final Iterable<String> locationValues = AudioUtil.getLocationValues();
 
+            // Pass 1: prefer audio/mpeg (real MP3) — most universally supported
             for (final PronunciationAudio audio: subject.getParsedPronunciationAudios()) {
-                if (isEqual(audio.getContentType(), "audio/ogg")) {
+                if (!isEqual(audio.getContentType(), "audio/mpeg")) {
                     continue;
                 }
                 if (AudioUtil.hasAudioFileFor(subject.getLevel(), audio, locationValues)) {
@@ -98,6 +99,29 @@ public final class DownloadAudioTask extends ApiTask {
                 }
             }
 
+            // Pass 2: audio/webm as fallback if no mpeg file exists for this recording
+            for (final PronunciationAudio audio: subject.getParsedPronunciationAudios()) {
+                if (!isEqual(audio.getContentType(), "audio/webm")) {
+                    continue;
+                }
+                if (AudioUtil.hasAudioFileFor(subject.getLevel(), audio, locationValues)) {
+                    continue;
+                }
+                final @Nullable File output = AudioUtil.getNewFileForAudio(subject.getLevel(), audio);
+                if (output == null) {
+                    continue;
+                }
+                final @Nullable File tempFile = AudioUtil.getTempFile(output);
+                if (tempFile == null) {
+                    continue;
+                }
+                if (audio.getUrl() != null) {
+                    downloadFile(audio.getUrl(), tempFile, output);
+                    scan = true;
+                }
+            }
+
+            // Pass 3: audio/ogg as last resort
             for (final PronunciationAudio audio: subject.getParsedPronunciationAudios()) {
                 if (!isEqual(audio.getContentType(), "audio/ogg")) {
                     continue;

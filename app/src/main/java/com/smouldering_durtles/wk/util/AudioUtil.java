@@ -17,10 +17,12 @@
 package com.smouldering_durtles.wk.util;
 
 import android.annotation.TargetApi;
+import android.content.Context;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.media.SoundPool;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
@@ -55,6 +57,11 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
+
 import javax.annotation.Nullable;
 
 import static com.smouldering_durtles.wk.Constants.AUDIO_DIRECTORY_NAME;
@@ -80,7 +87,30 @@ public final class AudioUtil {
     @SuppressWarnings({"unused", "FieldCanBeLocal", "RedundantSuppression"})
     private static @Nullable MediaPlayer savedMediaPlayer = null;
 
+    /**
+     * Kept alive so the SoundPool isn't GC'd before the sound finishes.
+     */
+    @SuppressWarnings({"unused", "FieldCanBeLocal", "RedundantSuppression"})
+    private static @Nullable SoundPool savedSoundPool = null;
+
     private static boolean lastWasMale = false;
+
+    /** WebM files start with the EBML magic bytes 0x1A 0x45 0xDF 0xA3. */
+    private static boolean isWebMFile(final File file) {
+        try (final FileInputStream fis = new FileInputStream(file)) {
+            final byte[] header = new byte[4];
+            if (fis.read(header) < 4) {
+                return false;
+            }
+            return (header[0] & 0xFF) == 0x1A
+                    && (header[1] & 0xFF) == 0x45
+                    && (header[2] & 0xFF) == 0xDF
+                    && (header[3] & 0xFF) == 0xA3;
+        }
+        catch (final Exception e) {
+            return false;
+        }
+    }
 
     private AudioUtil() {
         //
@@ -184,13 +214,18 @@ public final class AudioUtil {
             final File levelDir = new File(audioDir, Integer.toString(level));
             final GenderedFile mp3File = new GenderedFile(levelDir, String.format(Locale.ROOT, "%d.mp3", audio.getMetadata().getSourceId()),
                     audio.getMetadata().isMale());
-            if (mp3File.exists()) {
+            if (mp3File.exists() && !isWebMFile(mp3File)) {
                 return mp3File;
             }
             final GenderedFile oggFile = new GenderedFile(levelDir, String.format(Locale.ROOT, "%d.ogg", audio.getMetadata().getSourceId()),
                     audio.getMetadata().isMale());
             if (oggFile.exists()) {
                 return oggFile;
+            }
+            final GenderedFile webmFile = new GenderedFile(levelDir, String.format(Locale.ROOT, "%d.webm", audio.getMetadata().getSourceId()),
+                    audio.getMetadata().isMale());
+            if (webmFile.exists()) {
+                return webmFile;
             }
         }
         return null;
@@ -248,7 +283,8 @@ public final class AudioUtil {
                 return null;
             }
 
-            final String extension = audio.getContentType().equals("audio/ogg") ? ".ogg" : ".mp3";
+            final String extension = "audio/ogg".equals(audio.getContentType()) ? ".ogg"
+                    : "audio/webm".equals(audio.getContentType()) ? ".webm" : ".mp3";
             final String fileName = audio.getMetadata().getSourceId() + extension;
             return new GenderedFile(levelDir, fileName, audio.getMetadata().isMale());
         }
@@ -296,7 +332,8 @@ public final class AudioUtil {
                 return null;
             }
 
-            final String extension = audio.getContentType().equals("audio/ogg") ? ".ogg" : ".mp3";
+            final String extension = "audio/ogg".equals(audio.getContentType()) ? ".ogg"
+                    : "audio/webm".equals(audio.getContentType()) ? ".webm" : ".mp3";
             final String fileName = audio.getMetadata().getSourceId() + extension;
             return new GenderedFile(levelDir, fileName, audio.getMetadata().isMale());
         }
@@ -629,10 +666,10 @@ public final class AudioUtil {
         final AudioManager.OnAudioFocusChangeListener listener = focusChange -> {
             try {
                 if (focusChange == AudioManager.AUDIOFOCUS_LOSS
-                        || focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT
-                        || focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) {
+                        || focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
                     player.stop();
                 }
+                // AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK: another app briefly needs audio — let it duck, don't stop
             }
             catch (final Exception e) {
                 //
@@ -683,8 +720,7 @@ public final class AudioUtil {
         final AudioManager.OnAudioFocusChangeListener listener = focusChange -> {
             try {
                 if (focusChange == AudioManager.AUDIOFOCUS_LOSS
-                        || focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT
-                        || focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) {
+                        || focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
                     player.stop();
                 }
             }
@@ -732,8 +768,7 @@ public final class AudioUtil {
         final AudioManager.OnAudioFocusChangeListener listener = focusChange -> {
             try {
                 if (focusChange == AudioManager.AUDIOFOCUS_LOSS
-                        || focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT
-                        || focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) {
+                        || focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
                     player.stop();
                 }
             }
@@ -788,7 +823,6 @@ public final class AudioUtil {
         if (audioFile != null) {
             playLocalAudio(audioFile);
         } else {
-            // Fallback to streaming
             final @Nullable PronunciationAudio streamingAudio = getStreamingAudio(subject, lastMatchedAnswer);
             if (streamingAudio != null) {
                 playStreamingAudio(streamingAudio);
@@ -796,29 +830,115 @@ public final class AudioUtil {
         }
     }
 
-    private static void playLocalAudio(GenderedFile audioFile) {
+    private static void playLocalAudio(final GenderedFile audioFile) {
         safe(() -> {
+            final AudioManager audioManager = (AudioManager) WkApplication.getInstance().getSystemService(Context.AUDIO_SERVICE);
+            if (audioManager == null) {
+                return;
+            }
+            lastWasMale = audioFile.isMale();
+            final boolean useAudioFocus = GlobalSettings.Audio.getUseAudioFocus();
             final MediaPlayer player = new MediaPlayer();
             savedMediaPlayer = player;
-            lastWasMale = audioFile.isMale();
-
-            // Use audioFile directly
-            player.setDataSource(audioFile.getAbsolutePath());
-            player.prepare();
-            player.start();
+            player.setOnErrorListener((mp, what, extra) -> {
+                try { mp.reset(); } catch (final Exception e) { /* ignore */ }
+                try { mp.release(); } catch (final Exception e) { /* ignore */ }
+                savedMediaPlayer = null;
+                playWithSoundPool(audioFile);
+                return true;
+            });
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                playAudioPost26(audioManager, player, audioFile, useAudioFocus);
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                playAudioPost21(audioManager, player, audioFile, useAudioFocus);
+            } else {
+                playAudioPre21(audioManager, player, audioFile, useAudioFocus);
+            }
         });
     }
 
-    private static void playStreamingAudio(PronunciationAudio audio) {
+    @TargetApi(21)
+    private static void playWithSoundPool(final GenderedFile audioFile) {
         safe(() -> {
-            final MediaPlayer player = new MediaPlayer();
-            savedMediaPlayer = player;
-
-            lastWasMale = audio.getMetadata().isMale();
-            player.setDataSource(audio.getUrl());
-            player.prepare();
-            player.start();
+            if (savedSoundPool != null) {
+                try { savedSoundPool.release(); } catch (final Exception e) { /* ignore */ }
+                savedSoundPool = null;
+            }
+            final SoundPool pool;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                pool = new SoundPool.Builder()
+                        .setMaxStreams(1)
+                        .setAudioAttributes(new AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_MEDIA)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                .build())
+                        .build();
+            } else {
+                //noinspection deprecation
+                pool = new SoundPool(1, AudioManager.STREAM_MUSIC, 0);
+            }
+            savedSoundPool = pool;
+            pool.setOnLoadCompleteListener((sp, sampleId, status) -> {
+                if (status == 0) {
+                    sp.play(sampleId, 1.0f, 1.0f, 1, 0, 1.0f);
+                }
+            });
+            pool.load(audioFile.getAbsolutePath(), 1);
         });
+    }
+
+    private static void playStreamingAudio(final PronunciationAudio audio) {
+        // Some devices (e.g. Boox Go 7) crash with MEDIA_ERROR_SYSTEM when MediaPlayer streams
+        // directly over HTTP. Download to a temp file first, then play via the local path.
+        lastWasMale = audio.getMetadata().isMale();
+        final String url = audio.getUrl();
+        new Thread(() -> {
+            try {
+                final String extension = "audio/ogg".equals(audio.getContentType()) ? ".ogg"
+                        : "audio/webm".equals(audio.getContentType()) ? ".webm" : ".mp3";
+                final File tempFile = File.createTempFile("wk_audio_", extension,
+                        WkApplication.getInstance().getCacheDir());
+                tempFile.deleteOnExit();
+
+                final OkHttpClient client = new OkHttpClient();
+                final Request request = new Request.Builder().url(url).build();
+                try (final Response response = client.newCall(request).execute()) {
+                    if (!response.isSuccessful()) {
+                        return;
+                    }
+                    final @Nullable ResponseBody body = response.body();
+                    if (body == null) {
+                        return;
+                    }
+                    try (final InputStream in = body.byteStream();
+                         final FileOutputStream out = new FileOutputStream(tempFile)) {
+                        StreamUtil.pump(in, out);
+                    }
+                }
+
+                new Handler(Looper.getMainLooper()).post(() -> safe(() -> {
+                    final AudioManager audioManager = (AudioManager) WkApplication.getInstance().getSystemService(Context.AUDIO_SERVICE);
+                    if (audioManager == null) {
+                        return;
+                    }
+                    final GenderedFile genderedTemp = new GenderedFile(
+                            tempFile.getParentFile(), tempFile.getName(), audio.getMetadata().isMale());
+                    final MediaPlayer player = new MediaPlayer();
+                    savedMediaPlayer = player;
+                    final boolean useAudioFocus = GlobalSettings.Audio.getUseAudioFocus();
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        playAudioPost26(audioManager, player, genderedTemp, useAudioFocus);
+                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        playAudioPost21(audioManager, player, genderedTemp, useAudioFocus);
+                    } else {
+                        playAudioPre21(audioManager, player, genderedTemp, useAudioFocus);
+                    }
+                }));
+            }
+            catch (final Exception e) {
+                //
+            }
+        }, "wk-audio-download").start();
     }
 
     /**
@@ -841,7 +961,7 @@ public final class AudioUtil {
         // Same as above for female preference. Same functionality for alternating.
         final boolean femalePreferred = voicePreference == FEMALE || voicePreference == ALTERNATE && lastWasMale;
 
-        // Sorted based on pronunciation matching last matched answer and gender, taking into account their preference.
+        // Sorted based on pronunciation matching last matched answer and format/gender preference.
         final Comparator<PronunciationAudio> comparator = (o1, o2) -> {
             if (o1 == o2) {
                 return 0;
@@ -850,6 +970,15 @@ public final class AudioUtil {
                 return -1;
             }
             if (isEqual(o2.getMetadata().getPronunciation(), lastMatchedAnswer) && !isEqual(o1.getMetadata().getPronunciation(), lastMatchedAnswer)) {
+                return 1;
+            }
+            // Prefer audio/mpeg (MP3) over audio/webm — WebM/Opus is not reliably supported on all devices
+            final boolean o1IsMpeg = isEqual(o1.getContentType(), "audio/mpeg");
+            final boolean o2IsMpeg = isEqual(o2.getContentType(), "audio/mpeg");
+            if (o1IsMpeg && !o2IsMpeg) {
+                return -1;
+            }
+            if (o2IsMpeg && !o1IsMpeg) {
                 return 1;
             }
             if (malePreferred) {
