@@ -1479,6 +1479,18 @@ public final class Subject implements PronunciationAudioOwner {
     }
 
     /**
+     * Get the formatted suggestion display text for the toolbar search dropdown.
+     *
+     * @return suggestion text in the form "{type} {characters/slug} - {meaning}"
+     */
+    public String getSearchSuggestionText() {
+        final String characters = com.smouldering_durtles.wk.util.ObjectSupport.orElse(
+                getCharacters(),
+                com.smouldering_durtles.wk.util.ObjectSupport.orElse(getSlug(), ""));
+        return getSearchSuggestionType() + " " + characters + " - " + getOneMeaning();
+    }
+
+    /**
      * Get the type-specific background color for this subject.
      *
      * @return the color

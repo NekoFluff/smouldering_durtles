@@ -16,9 +16,7 @@
 
 package com.smouldering_durtles.wk.activities;
 
-import android.app.SearchManager;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
@@ -26,7 +24,7 @@ import android.media.AudioManager;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.SearchView;
+import androidx.appcompat.widget.SearchView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.ActionBar;
@@ -340,11 +338,13 @@ public abstract class AbstractActivity extends AppCompatActivity implements Shar
             flushTasksItem.setVisible(!LiveTaskCounts.getInstance().get().isEmpty());
         }
 
-        final @Nullable SearchManager searchManager = (SearchManager) getSystemService(Context.SEARCH_SERVICE);
         final @Nullable MenuItem searchItem = menu.findItem(R.id.action_search);
-        if (searchItem != null && searchManager != null) {
+        if (searchItem != null) {
             final SearchView searchView = (SearchView) searchItem.getActionView();
-            searchView.setSearchableInfo(searchManager.getSearchableInfo(new ComponentName(this, BrowseActivity.class)));
+            searchView.setMaxWidth(Integer.MAX_VALUE);
+            new com.smouldering_durtles.wk.util.SearchSuggestionsManager(this, getLayoutInflater())
+                    .attach(searchView, getString(R.string.subject_info_uri),
+                            new ComponentName(this, BrowseActivity.class));
         }
 
         final @Nullable MenuItem testItem = menu.findItem(R.id.action_test);
@@ -375,10 +375,6 @@ public abstract class AbstractActivity extends AppCompatActivity implements Shar
 
         if (itemId == R.id.action_settings) {
             goToPreferencesActivity(null);
-            return true;
-        }
-        if (itemId == R.id.action_search) {
-            startSearch(null, false, null, false);
             return true;
         }
         if (itemId == R.id.action_mute) {

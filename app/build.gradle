@@ -27,7 +27,6 @@ android {
         release {
             minifyEnabled false
             resValue 'string', 'fileprovider_authority', 'com.smouldering_durtles.wk.fileprovider'
-            resValue 'string', 'searchprovider_authority', 'com.smouldering_durtles.wk.db.SubjectContentProvider'
             resValue 'string', 'applabel', '@string/label'
             buildConfigField 'String', 'FILEPROVIDER_AUTHORITY', '"com.smouldering_durtles.wk.fileprovider"'
             signingConfig signingConfigs.debug
@@ -35,7 +34,6 @@ android {
         debug {
             applicationIdSuffix '.debug'
             resValue 'string', 'fileprovider_authority', 'com.smouldering_durtles.wk.debug.fileprovider'
-            resValue 'string', 'searchprovider_authority', 'com.smouldering_durtles.wk.debug.db.SubjectContentProvider'
             resValue 'string', 'applabel', '@string/labelDebug'
             buildConfigField 'String', 'FILEPROVIDER_AUTHORITY', '"com.smouldering_durtles.wk.debug.fileprovider"'
         }
