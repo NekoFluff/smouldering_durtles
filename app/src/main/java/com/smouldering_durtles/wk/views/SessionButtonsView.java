@@ -40,6 +40,7 @@ public final class SessionButtonsView extends LinearLayout {
     private final ViewProxy startLessonsButton = new ViewProxy();
     private final ViewProxy pickLessonsButton = new ViewProxy();
     private final ViewProxy startReviewsButton = new ViewProxy();
+    private final ViewProxy reviewsRightSpacer = new ViewProxy();
     private final ViewProxy startButtonsRow = new ViewProxy();
 
     /**
@@ -76,6 +77,7 @@ public final class SessionButtonsView extends LinearLayout {
             startLessonsButton.setDelegate(this, R.id.startLessonsButton);
             pickLessonsButton.setDelegate(this, R.id.pickLessonsButton);
             startReviewsButton.setDelegate(this, R.id.startReviewsButton);
+            reviewsRightSpacer.setDelegate(this, R.id.reviewsRightSpacer);
             startButtonsRow.setDelegate(this, R.id.startButtonsRow);
         });
     }
@@ -129,6 +131,7 @@ public final class SessionButtonsView extends LinearLayout {
         startLessonsButton.setVisibility(startLessonButtonVisible);
         pickLessonsButton.setVisibility(pickLessonsButtonVisible);
         startReviewsButton.setVisibility(startReviewButtonVisible);
+        reviewsRightSpacer.setVisibility(startReviewButtonVisible);
         startButtonsRow.setVisibility(startRowVisible);
         setVisibility(startRowVisible || resumeButtonVisible ? VISIBLE : GONE);
     }
