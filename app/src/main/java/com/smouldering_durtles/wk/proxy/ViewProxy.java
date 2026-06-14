@@ -370,6 +370,13 @@ public final class ViewProxy {
         }
     }
 
+    public void setAnimationSpeed(final int speed) {
+        final @Nullable View delegate = getDelegate();
+        if (delegate instanceof StrokeDiagramView) {
+            ((StrokeDiagramView) delegate).setAnimationSpeed(speed);
+        }
+    }
+
     public void setStrokeData(final Collection<String> strokeData) {
         final @Nullable View delegate = getDelegate();
         if (delegate instanceof StrokeDiagramView) {

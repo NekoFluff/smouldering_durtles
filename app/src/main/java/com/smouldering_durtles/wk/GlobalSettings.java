@@ -1387,6 +1387,15 @@ public final class GlobalSettings {
         public static int getStrokeOrderSize() {
             return prefs().getInt("stroke_order_size", 250);
         }
+
+        /**
+         * Animation speed multiplier for stroke order diagrams.
+         *
+         * @return the value
+         */
+        public static int getStrokeOrderAnimationSpeed() {
+            return prefs().getInt("stroke_order_animation_speed", 4);
+        }
     }
 
     /**

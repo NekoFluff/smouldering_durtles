@@ -430,6 +430,19 @@
             app:showSeekBarValue="true"
             app:adjustable="true"/>
 
+        <SeekBarPreference
+            app:key="stroke_order_animation_speed"
+            app:title="Stroke animation speed"
+            app:singleLineTitle="false"
+            app:summary="Higher value = slower animation"
+            app:defaultValue="4"
+            app:min="1"
+            android:max="5"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:adjustable="true"
+            app:dependency="stroke_order_animated"/>
+
     </PreferenceScreen>
 
     <PreferenceScreen
