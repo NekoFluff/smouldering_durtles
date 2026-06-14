@@ -55,6 +55,7 @@ import com.smouldering_durtles.wk.util.TextUtil;
 import javax.annotation.Nullable;
 
 import static com.smouldering_durtles.wk.Constants.LANDSCAPE_ACTION_BAR_HEIGHT;
+import static com.smouldering_durtles.wk.util.ObjectSupport.runAsync;
 import static com.smouldering_durtles.wk.util.ObjectSupport.safe;
 
 /**
@@ -167,8 +168,19 @@ public final class SessionActivity extends AbstractActivity {
 
         if (session.isInactive()) {
             if (!finished) {
-                finished = true;
-                goToMainActivity();
+                if (session.hasPendingPickerQueue()) {
+                    finished = true;
+                    runAsync(this, () -> {
+                        session.startNextPickerBatch();
+                        return null;
+                    }, result -> {
+                        finished = false;
+                        updateFragment();
+                    });
+                } else {
+                    finished = true;
+                    goToMainActivity();
+                }
             }
             return;
         }

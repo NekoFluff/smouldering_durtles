@@ -140,6 +140,7 @@ public final class SummarySessionFragment extends AbstractSessionFragment implem
         specialButton2.setDelegate(view, R.id.specialButton2);
         specialButton3.setDelegate(view, R.id.specialButton3);
         finishButton.setDelegate(view, R.id.finishButton);
+        finishButton.setText(session.hasPendingPickerQueue() ? "Continue" : "Finish");
         showButton.setDelegate(view, R.id.showButton);
         resurrectIncorrectButton.setDelegate(view, R.id.resurrectIncorrectButton);
         correctHeader.setDelegate(view, R.id.correctHeader);

@@ -110,6 +110,7 @@ public final class Session implements SubjectChangeListener {
     private final Deque<Question> history = new ArrayDeque<>();
     private long lastTypedIncorrectAnswer = 0;
     private boolean forceNewFragment = false;
+    private final List<Subject> pendingPickerQueue = new ArrayList<>();
 
 
     /**
@@ -1442,6 +1443,7 @@ s     *
      */
     @SuppressLint("NewApi")
     public void startNewLessonSession(final List<Subject> subjects) {
+        pendingPickerQueue.clear();
         if (subjects.isEmpty()) {
             throw new IllegalArgumentException();
         }
@@ -1483,12 +1485,75 @@ s     *
     }
 
     /**
+     * Entry point for the lesson picker. Queues all selected subjects and starts
+     * the first batch. When each batch finishes, SessionActivity chains the next one.
+     */
+    @SuppressLint("NewApi")
+    public void startNewPickedLessonSession(final List<Subject> allSubjects) {
+        if (allSubjects.isEmpty()) {
+            throw new IllegalArgumentException();
+        }
+        pendingPickerQueue.clear();
+        pendingPickerQueue.addAll(allSubjects);
+        startNextPickerBatch();
+    }
+
+    /**
+     * Starts the next batch of items from the picker queue. Called by
+     * startNewPickedLessonSession for the first batch, and by SessionActivity
+     * after each subsequent batch completes.
+     */
+    @SuppressLint("NewApi")
+    public void startNextPickerBatch() {
+        if (pendingPickerQueue.isEmpty()) {
+            return;
+        }
+        final int maxSize = GlobalSettings.Review.gexMaxLessonSessionSize();
+        final int end = Math.min(maxSize, pendingPickerQueue.size());
+        final List<Subject> batch = new ArrayList<>(pendingPickerQueue.subList(0, end));
+        pendingPickerQueue.subList(0, end).clear();
+
+        type = LESSON;
+        onkun = GlobalSettings.AdvancedOther.getKanjiModeOnKun();
+        delayed = GlobalSettings.Review.getDelayResultUpload();
+        backToBack = GlobalSettings.AdvancedLesson.getBackToBack();
+        readingFirst = GlobalSettings.AdvancedLesson.getReadingFirst();
+        meaningFirst = GlobalSettings.AdvancedLesson.getMeaningFirst();
+        final AppDatabase db = WkApplication.getDatabase();
+        db.propertiesDao().setSessionType(type);
+        db.propertiesDao().setSessionOnkun(onkun);
+
+        // Preserve picker order — items already shuffled by the picker
+        comparator = (a, b) -> 0;
+        history.clear();
+        populateItems(batch, batch.size(), false);
+        createQuestions();
+        state = IN_LESSON_PRESENTATION;
+        adapter.clear();
+        adapter.addEventStartSession(type);
+        currentItem = null;
+        setCurrentQuestion(null, QuestionChoiceReason.STARTING_LESSON_SESSION);
+        lastFinishedSubjectId = -1;
+        LiveSessionState.getInstance().post(state);
+        checkQuestions();
+        LiveSessionProgress.getInstance().ping();
+    }
+
+    /**
+     * Returns true if there are more picker-queued items waiting for the next batch.
+     */
+    public boolean hasPendingPickerQueue() {
+        return !pendingPickerQueue.isEmpty();
+    }
+
+    /**
      * Start a new review session for a given list of subjects.
      *
      * @param subjects list of subjects
      */
     @SuppressLint("NewApi")
     public void startNewReviewSession(final List<Subject> subjects) {
+        pendingPickerQueue.clear();
         if (subjects.isEmpty()) {
             throw new IllegalArgumentException();
         }
@@ -1540,6 +1605,7 @@ s     *
      */
     @SuppressLint("NewApi")
     public void startNewSelfStudySession(final List<Subject> subjects) {
+        pendingPickerQueue.clear();
         if (subjects.isEmpty()) {
             throw new IllegalArgumentException();
         }

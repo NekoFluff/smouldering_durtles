@@ -94,6 +94,7 @@ public final class MainActivity extends AbstractActivity {
         final ViewProxy viewKeyboardHelpButton = new ViewProxy(this, R.id.viewKeyboardHelpButton);
         final ViewProxy dismissKeyboardHelpButton = new ViewProxy(this, R.id.dismissKeyboardHelpButton);
         final ViewProxy startLessonsButton = new ViewProxy(this, R.id.startLessonsButton);
+        final ViewProxy pickLessonsButton = new ViewProxy(this, R.id.pickLessonsButton);
         final ViewProxy startReviewsButton = new ViewProxy(this, R.id.startReviewsButton);
         final ViewProxy resumeButton = new ViewProxy(this, R.id.resumeButton);
 
@@ -103,6 +104,7 @@ public final class MainActivity extends AbstractActivity {
         viewKeyboardHelpButton.setOnClickListener(v -> viewKeyboardHelp());
         dismissKeyboardHelpButton.setOnClickListener(v -> dismissKeyboardHelp());
         startLessonsButton.setOnClickListener(v -> startLessonSession());
+        pickLessonsButton.setOnClickListener(v -> pickLessonSession());
         startReviewsButton.setOnClickListener(v -> startReviewSession());
         resumeButton.setOnClickListener(v -> resumeSession());
 
@@ -270,6 +272,18 @@ public final class MainActivity extends AbstractActivity {
         safe(() -> {
             GlobalSettings.Tutorials.setKeyboardHelpDismissed(true);
             keyboardHelpView.setVisibility(false);
+        });
+    }
+
+    /**
+     * Handler for the pick lessons button — navigates to the lesson picker screen.
+     */
+    private void pickLessonSession() {
+        safe(() -> {
+            if (!interactionEnabled) {
+                return;
+            }
+            goToActivity(LessonPickerActivity.class);
         });
     }
 

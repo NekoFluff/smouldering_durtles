@@ -110,6 +110,9 @@
         <activity android:name=".activities.SelfStudyStartActivity"
             android:label="Self-study quiz"
             android:parentActivityName=".activities.MainActivity"/>
+        <activity android:name=".activities.LessonPickerActivity"
+            android:label="Choose Lessons"
+            android:parentActivityName=".activities.MainActivity"/>
         <activity android:name=".activities.FontSelectionActivity"
             android:label="Font selection"
             android:parentActivityName=".activities.MainActivity"/>
