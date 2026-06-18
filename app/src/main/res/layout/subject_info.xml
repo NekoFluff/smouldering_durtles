@@ -228,6 +228,8 @@
         android:layout_marginTop="4dp"
         android:visibility="gone"/>
 
+    <include layout="@layout/stroke_practice_panel" />
+
     <com.smouldering_durtles.wk.views.DividerView
         android:id="@+id/contextSentencesDivider"
         android:layout_width="match_parent"

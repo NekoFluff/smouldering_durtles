@@ -28,6 +28,7 @@ import com.smouldering_durtles.wk.model.FloatingUiState;
 import com.smouldering_durtles.wk.model.Question;
 import com.smouldering_durtles.wk.proxy.ViewProxy;
 import com.smouldering_durtles.wk.util.AudioUtil;
+import com.smouldering_durtles.wk.views.StrokePracticeSheetView;
 import com.smouldering_durtles.wk.views.SubjectInfoView;
 import com.smouldering_durtles.wk.views.SwipingScrollView;
 
@@ -49,6 +50,12 @@ public final class LessonSessionFragment extends AbstractSessionFragment impleme
     private final ViewProxy progress = new ViewProxy();
     private final ViewProxy scrollView = new ViewProxy();
     private final ViewProxy subjectInfo = new ViewProxy();
+    private final ViewProxy strokePracticePanel = new ViewProxy();
+    private final ViewProxy strokePracticeClearButton = new ViewProxy();
+    private final ViewProxy strokePracticeUndoButton = new ViewProxy();
+    private final ViewProxy strokePracticeHintsButton = new ViewProxy();
+    private final ViewProxy strokePracticeCollapseButton = new ViewProxy();
+    private @Nullable StrokePracticeSheetView strokePracticeSheetView = null;
 
     /**
      * The constructor.
@@ -104,12 +111,20 @@ public final class LessonSessionFragment extends AbstractSessionFragment impleme
         subjectInfo.setDelegate(view, R.id.subjectInfo);
 
         scrollView.setSwipeListener(this);
+        strokePracticePanel.setDelegate(view, R.id.strokePracticePanel);
+        strokePracticeClearButton.setDelegate(view, R.id.strokePracticeClearButton);
+        strokePracticeUndoButton.setDelegate(view, R.id.strokePracticeUndoButton);
+        strokePracticeHintsButton.setDelegate(view, R.id.strokePracticeHintsButton);
+        strokePracticeCollapseButton.setDelegate(view, R.id.strokePracticeCollapseButton);
+        strokePracticeSheetView = view.findViewById(R.id.strokePracticeSheetView);
 
         final List<SessionItem> items = session.getItems();
 
         subjectInfo.setMaxFontSize(GlobalSettings.Font.getMaxFontSizeLesson());
         subjectInfo.setContainerType(SubjectInfoView.ContainerType.LESSON_PRESENTATION);
         subjectInfo.setSubject(this, subject);
+
+        setupStrokePractice();
 
         previousButton.setVisibility(!session.isOnFirstLessonItem());
         nextButton.setText(session.isOnLastLessonItem() ? "Start quiz" : "Next");
@@ -186,6 +201,48 @@ public final class LessonSessionFragment extends AbstractSessionFragment impleme
     @Override
     public @Nullable Subject getSubject() {
         return subject;
+    }
+
+    private void setupStrokePractice() {
+        if (subject == null || !subject.hasStrokeData() || !GlobalSettings.StrokePractice.getShowStrokePractice()) {
+            strokePracticePanel.setVisibility(false);
+            return;
+        }
+        strokePracticePanel.setVisibility(true);
+
+        if (strokePracticeSheetView != null) {
+            strokePracticeSheetView.setStrokeData(subject.getParsedStrokeData());
+            final boolean expanded = GlobalSettings.StrokePractice.getPracticeExpanded();
+            strokePracticeSheetView.setVisibility(expanded ? android.view.View.VISIBLE : android.view.View.GONE);
+            strokePracticeCollapseButton.setText(expanded ? "▲" : "▼");
+            final boolean showHints = GlobalSettings.StrokePractice.getShowHints();
+            strokePracticeSheetView.setShowHints(showHints);
+            strokePracticeHintsButton.setText(showHints ? "Hints" : "No hints");
+        }
+
+        strokePracticeClearButton.setOnClickListener(v -> safe(() -> {
+            if (strokePracticeSheetView != null) strokePracticeSheetView.clear();
+        }));
+
+        strokePracticeUndoButton.setOnClickListener(v -> safe(() -> {
+            if (strokePracticeSheetView != null) strokePracticeSheetView.undo();
+        }));
+
+        strokePracticeHintsButton.setOnClickListener(v -> safe(() -> {
+            if (strokePracticeSheetView != null) {
+                final boolean showing = strokePracticeSheetView.toggleHints();
+                strokePracticeHintsButton.setText(showing ? "Hints" : "No hints");
+                GlobalSettings.StrokePractice.setShowHints(showing);
+            }
+        }));
+
+        strokePracticeCollapseButton.setOnClickListener(v -> safe(() -> {
+            if (strokePracticeSheetView == null) return;
+            final boolean expanded = strokePracticeSheetView.getVisibility() != android.view.View.VISIBLE;
+            strokePracticeSheetView.setVisibility(expanded ? android.view.View.VISIBLE : android.view.View.GONE);
+            strokePracticeCollapseButton.setText(expanded ? "▲" : "▼");
+            GlobalSettings.StrokePractice.setPracticeExpanded(expanded);
+        }));
     }
 
     @Override

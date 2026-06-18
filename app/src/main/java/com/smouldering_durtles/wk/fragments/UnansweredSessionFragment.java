@@ -50,6 +50,7 @@ import com.smouldering_durtles.wk.model.Question;
 import com.smouldering_durtles.wk.proxy.ViewProxy;
 import com.smouldering_durtles.wk.util.Logger;
 import com.smouldering_durtles.wk.util.PseudoIme;
+import com.smouldering_durtles.wk.views.StrokePracticeSheetView;
 
 import java.util.Locale;
 import java.util.Objects;
@@ -81,6 +82,11 @@ public final class UnansweredSessionFragment extends AbstractSessionFragment {
     private final ViewProxy questionEdit = new ViewProxy();
     private final ViewProxy questionView = new ViewProxy();
     private final ViewProxy questionEditFrame = new ViewProxy();
+    private final ViewProxy strokePracticePanel = new ViewProxy();
+    private final ViewProxy strokePracticeClearButton = new ViewProxy();
+    private final ViewProxy strokePracticeUndoButton = new ViewProxy();
+    private final ViewProxy strokePracticeHintsButton = new ViewProxy();
+    private final ViewProxy strokePracticeCollapseButton = new ViewProxy();
 
     /**
      * The constructor.
@@ -141,6 +147,13 @@ public final class UnansweredSessionFragment extends AbstractSessionFragment {
         questionEdit.setDelegate(view, R.id.questionEdit);
         questionView.setDelegate(view, R.id.questionView);
         questionEditFrame.setDelegate(view, R.id.questionEditFrame);
+
+        strokePracticePanel.setDelegate(view, R.id.strokePracticePanel);
+        strokePracticeClearButton.setDelegate(view, R.id.strokePracticeClearButton);
+        strokePracticeUndoButton.setDelegate(view, R.id.strokePracticeUndoButton);
+        strokePracticeHintsButton.setDelegate(view, R.id.strokePracticeHintsButton);
+        strokePracticeCollapseButton.setDelegate(view, R.id.strokePracticeCollapseButton);
+        setupStrokePractice(view);
 
         questionEdit.setTag(true);
         addTextWatcherToEditText();
@@ -369,6 +382,49 @@ public final class UnansweredSessionFragment extends AbstractSessionFragment {
             return session.getQuestionChoiceReason().getAnimation();
         }
         return FragmentTransitionAnimation.RTL;
+    }
+
+    private void setupStrokePractice(final View view) {
+        if (subject == null || !subject.hasStrokeData() || !GlobalSettings.StrokePractice.getShowStrokePractice()) {
+            strokePracticePanel.setVisibility(false);
+            return;
+        }
+        strokePracticePanel.setVisibility(true);
+
+        final @Nullable StrokePracticeSheetView sheetView = view.findViewById(R.id.strokePracticeSheetView);
+        if (sheetView != null) {
+            sheetView.setStrokeData(subject.getParsedStrokeData());
+            final boolean expanded = GlobalSettings.StrokePractice.getPracticeExpanded();
+            sheetView.setVisibility(expanded ? android.view.View.VISIBLE : android.view.View.GONE);
+            strokePracticeCollapseButton.setText(expanded ? "▲" : "▼");
+            final boolean showHints = GlobalSettings.StrokePractice.getShowHints();
+            sheetView.setShowHints(showHints);
+            strokePracticeHintsButton.setText(showHints ? "Hints" : "No hints");
+        }
+
+        strokePracticeClearButton.setOnClickListener(v -> safe(() -> {
+            if (sheetView != null) sheetView.clear();
+        }));
+
+        strokePracticeUndoButton.setOnClickListener(v -> safe(() -> {
+            if (sheetView != null) sheetView.undo();
+        }));
+
+        strokePracticeHintsButton.setOnClickListener(v -> safe(() -> {
+            if (sheetView != null) {
+                final boolean showing = sheetView.toggleHints();
+                strokePracticeHintsButton.setText(showing ? "Hints" : "No hints");
+                GlobalSettings.StrokePractice.setShowHints(showing);
+            }
+        }));
+
+        strokePracticeCollapseButton.setOnClickListener(v -> safe(() -> {
+            if (sheetView == null) return;
+            final boolean expanded = sheetView.getVisibility() != android.view.View.VISIBLE;
+            sheetView.setVisibility(expanded ? android.view.View.VISIBLE : android.view.View.GONE);
+            strokePracticeCollapseButton.setText(expanded ? "▲" : "▼");
+            GlobalSettings.StrokePractice.setPracticeExpanded(expanded);
+        }));
     }
 
     private void addTextWatcherToEditText() {

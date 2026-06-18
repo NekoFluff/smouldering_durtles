@@ -1399,6 +1399,49 @@ public final class GlobalSettings {
     }
 
     /**
+     * Stroke practice settings.
+     */
+    public static final class StrokePractice {
+        private StrokePractice() {
+            //
+        }
+
+        public static boolean getShowStrokePractice() {
+            return prefs().getBoolean("show_stroke_practice", false);
+        }
+
+        public static boolean getPracticeExpanded() {
+            return prefs().getBoolean("stroke_practice_expanded", true);
+        }
+
+        public static void setPracticeExpanded(final boolean expanded) {
+            try {
+                final SharedPreferences.Editor editor = prefs().edit();
+                editor.putBoolean("stroke_practice_expanded", expanded);
+                editor.apply();
+            }
+            catch (final Exception e) {
+                //
+            }
+        }
+
+        public static boolean getShowHints() {
+            return prefs().getBoolean("stroke_practice_show_hints", true);
+        }
+
+        public static void setShowHints(final boolean show) {
+            try {
+                final SharedPreferences.Editor editor = prefs().edit();
+                editor.putBoolean("stroke_practice_show_hints", show);
+                editor.apply();
+            }
+            catch (final Exception e) {
+                //
+            }
+        }
+    }
+
+    /**
      * Audio settings.
      */
     public static final class Audio {

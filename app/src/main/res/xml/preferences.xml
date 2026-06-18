@@ -443,6 +443,13 @@
             app:adjustable="true"
             app:dependency="stroke_order_animated"/>
 
+        <SwitchPreferenceCompat
+            app:key="show_stroke_practice"
+            app:title="Show stroke practice panel during lessons and reviews"
+            app:singleLineTitle="false"
+            app:defaultValue="false"
+            app:summary="Adds a writable canvas for stylus/finger stroke practice"/>
+
     </PreferenceScreen>
 
     <PreferenceScreen
