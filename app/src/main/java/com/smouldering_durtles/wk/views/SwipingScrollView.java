@@ -75,13 +75,15 @@ public final class SwipingScrollView extends ScrollView {
 
     private void handleTouchEvent(final MotionEvent event) {
         if (event.getAction() == MotionEvent.ACTION_DOWN) {
-            if (!active) {
-                active = true;
-                startX = event.getRawX();
-                startY = event.getRawY();
-                endX = startX;
-                endY = startY;
-            }
+            // Always reset on a new gesture. Not resetting here causes a stale startX
+            // when a child view (e.g. StrokePracticeSheetView) used
+            // requestDisallowInterceptTouchEvent(true) so the previous gesture's
+            // ACTION_UP never cleared `active`, making the next tap look like a swipe.
+            active = true;
+            startX = event.getRawX();
+            startY = event.getRawY();
+            endX = startX;
+            endY = startY;
         }
         else if (event.getAction() == MotionEvent.ACTION_MOVE) {
             if (active) {
